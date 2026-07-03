@@ -1,0 +1,74 @@
+static_resources:
+  listeners:
+    - name: local
+      address:
+        socket_address:
+          address: 127.0.0.1
+          port_value: 10000
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: auto_sni_choose_host
+                route_config:
+                  name: local
+                  virtual_hosts:
+                    - name: local
+                      domains: ["*"]
+                      routes:
+                        - match:
+                            prefix: /
+                          route:
+                            cluster: auto_sni_choose_host
+                            timeout: 15s
+                            host_rewrite_header: x-target-host
+                http_filters:
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+  clusters:
+    - name: auto_sni_choose_host
+      connect_timeout: 5s
+      lb_policy: CLUSTER_PROVIDED
+      transport_socket:
+        name: envoy.transport_sockets.tls
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
+          auto_host_sni: true
+          auto_sni_san_validation: true
+          common_tls_context:
+            validation_context:
+              trusted_ca:
+                filename: "@TRUSTED_CA@"
+      cluster_type:
+        name: envoy.clusters.dynamic_modules
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.clusters.dynamic_modules.v3.ClusterConfig
+          dynamic_module_config:
+            name: auto_sni_choose_host
+          cluster_name: auto-sni-choose-host
+          cluster_config:
+            "@type": type.googleapis.com/google.protobuf.StringValue
+            value: |
+              {
+                "header_name": "x-target-host",
+                "default": "example.com",
+                "hosts": [
+                  {
+                    "name": "example.com",
+                    "address": "example.com:443",
+                    "hostname": "example.com"
+                  },
+                  {
+                    "name": "www.iana.org",
+                    "address": "www.iana.org:443",
+                    "hostname": "www.iana.org"
+                  }
+                ]
+              }
+admin:
+  address:
+    socket_address:
+      address: 127.0.0.1
+      port_value: 19000
