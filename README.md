@@ -2,6 +2,9 @@
 
 Minimal dynamic-module cluster example for the `auto_host_sni` hostname ABI patch.
 
+Patch/prototype context:
+https://gist.github.com/dio/965d1e555909c02013ca882a2b3caa78
+
 The module registers a cluster named `auto-sni-choose-host`. At cluster init it
 adds two HTTPS hosts with both a concrete socket address and a logical hostname.
 At request time `ChooseHost` reads `x-target-host` and returns the matching host.
